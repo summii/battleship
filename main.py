@@ -1,4 +1,5 @@
 import copy
+import random
 
 
 class GameBoard(object):
@@ -46,11 +47,12 @@ class Battleship(object):
                 el = (head[0] + i, head[1])
             body.append(el)
 
-        return Battleship(body)
+        return Battleship(body, direction)
 
 
-    def __init__(self, body):
+    def __init__(self, body, direction):
         self.body = body
+        self.direction = direction
         self.hits = [False] * len(body)
 
     def body_index(self, location):
@@ -62,9 +64,11 @@ class Battleship(object):
     def is_destroyed(self):
         return all(self.hits)
 
+class Player(object):
+    def __init__(self, name, shot_f):
+        self.name = name
+        self.shot_f = shot_f
 
-b = Battleship.build((1,2), 5, "S")
-b2 = Battleship([(1,2),(2,2),(3,2), (4,2), (5,2)])
 
 
 
@@ -80,8 +84,25 @@ def render(game_board, show_battleships=False):
     if show_battleships:
 
         for b in game_board.battleships:
-            for x,y in b.body:
-                board[x][y] = "O"
+            for i, (x,y) in enumerate(b.body):
+                if b.direction == "N":
+                    chs = ("v", "|", "^")
+                elif b.direction == "S":
+                    chs = ("^", "|", "v")
+                elif b.direction == "W":
+                    chs = (">", "=", "<")
+                elif b.direction == "E":
+                    chs = ("<", "=", ">")
+                else:
+                    raise "Unknown direction"
+
+                if i == 0:
+                    ch = chs[0]
+                elif i == len(b.body)-1:
+                    ch = chs[2]
+                else:
+                    ch = chs[1]
+                board[x][y] = ch
 
     for sh in game_board.shots:
         x,y = sh.location
@@ -98,6 +119,19 @@ def render(game_board, show_battleships=False):
         print("|" + "".join(row) + "|")
     print(header)
 
+def get_random_ai_shot(game_board):
+    x = random.randint(0, game_board.width-1)
+    y = random.randint(0, game_board.height-1)
+    return (x, y)
+
+def get_human_shot(game_board):
+    inp = input("Where do you want to shoot?\n")
+    xstr, ystr = inp.split(",")
+    x = int(xstr)
+    y = int(ystr)
+
+    return (x,y)
+
     
 if __name__ == "__main__":
     battleships = [
@@ -111,9 +145,9 @@ if __name__ == "__main__":
             GameBoard(copy.deepcopy(battleships), 10, 10)
     ]
 
-    player_names = [
-            "summii1",
-            "summii2"
+    players = [
+            Player("SUMMII", get_human_shot),
+            Player("COMPUTER", get_random_ai_shot)
     ]
 
     offensive_idx = 0
@@ -121,19 +155,18 @@ if __name__ == "__main__":
     while True:
         defensive_idx = (offensive_idx + 1) %2
         defensive_board = game_boards[defensive_idx]
+
+        offensive_player = players[offensive_idx]
         
 
-        print("%s YOUR TURN" % player_names[offensive_idx])
-        inp = input("Where do you want to shoot?\n")
-        xstr, ystr = inp.split(",")
-        x = int(xstr)
-        y = int(ystr)
+        print("%s YOUR TURN" % offensive_player.name)
 
-        defensive_board.take_shot((x,y))
+        shot_location = offensive_player.shot_f(defensive_board)
+        defensive_board.take_shot(shot_location)
         render(defensive_board)
 
         if defensive_board.is_game_over():
-            print("%s WIN!" % player_names[offensive_idx])
+            print("%s WIN!" % offensive_player.name)
             break
 
         offensive_idx = defensive_idx
